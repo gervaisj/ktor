@@ -15,7 +15,9 @@ import io.ktor.util.reflect.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlin.time.Duration
 
@@ -1167,7 +1169,7 @@ public suspend fun HttpClient.sse(
     block
 )
 
-private suspend inline fun <reified T> HttpClient.processSession(
+private suspend inline fun <reified T : CoroutineScope> HttpClient.processSession(
     reconnectionTime: Duration?,
     showCommentEvents: Boolean?,
     showRetryEvents: Boolean?,
@@ -1185,11 +1187,11 @@ private suspend inline fun <reified T> HttpClient.processSession(
         addAttribute(showRetryEventsAttr, showRetryEvents)
         additionalAttributes()
     }
-    @Suppress("SuspendFunctionOnCoroutineScope")
     launch {
         try {
             statement.body<T, Unit> { session ->
                 sessionDeferred.complete(session)
+                session.coroutineContext.job.join() // keep the session alive until the caller decides to cancel it
             }
         } catch (cause: CancellationException) {
             sessionDeferred.cancel(cause)

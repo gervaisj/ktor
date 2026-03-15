@@ -10,7 +10,6 @@ import io.ktor.client.plugins.*
 import io.ktor.client.request.*
 import io.ktor.utils.io.*
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableJob
 import kotlinx.coroutines.job
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.ContinuationInterceptor
@@ -219,22 +218,17 @@ public class HttpStatement(
     internal suspend fun HttpResponse.cleanup(): Unit = cleanup(cause = null)
 
     /**
-     * Completes [HttpResponse] and releases resources.
+     * Cancels [HttpResponse] and releases resources.
      *
-     * @param cause If not null, cancels the response job with this cause to immediately interrupt
-     * any pending network operations.
+     * @param cause if any, the cause to include in the `CancellationException`.
      */
     @PublishedApi
     @OptIn(InternalAPI::class)
     internal suspend fun HttpResponse.cleanup(cause: Throwable?) {
-        val job = coroutineContext.job as CompletableJob
+        val job = coroutineContext.job
 
         job.apply {
-            if (cause != null) {
-                cancel(CancellationException("Exception occurred during request execution", cause))
-            } else {
-                complete()
-            }
+            cancel(CancellationException("Response handling block completed", cause))
             // If the response is saved, the underlying channel is already closed and
             // calling `rawContent` would create a new one
             if (!isSaved) {

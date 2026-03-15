@@ -105,4 +105,30 @@ class HttpStatementTest : ClientLoader() {
             assertEquals("Test exception from body block", exception.message)
         }
     }
+
+    @Test
+    fun testStreamingResponseCancelsImmediatelyOnExecuteCompletion() = clientTests {
+        test { client ->
+            val returnValue = withTimeout(2000) {
+                client.prepareGet("$TEST_SERVER/content/stream?delay=60000").execute { _ ->
+                    "Return value from execute block"
+                }
+            }
+            assertEquals("Return value from execute block", returnValue)
+        }
+    }
+
+    @Test
+    fun testStreamingResponseCancelsImmediatelyOnBodyCompletion() = clientTests {
+        test { client ->
+            val returnValue = withTimeout(2000) {
+                client.prepareGet(
+                    "$TEST_SERVER/content/stream?delay=60000"
+                ).body { _: ByteReadChannel ->
+                    "Return value from body block"
+                }
+            }
+            assertEquals("Return value from body block", returnValue)
+        }
+    }
 }
